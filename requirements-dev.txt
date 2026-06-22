@@ -1,0 +1,4 @@
+# Geliştirme/test bağımlılıkları (çalışma-zamanında GEREKMEZ).
+pytest>=8.0
+ruff>=0.5
+PyYAML>=6.0    # YAML config testleri için

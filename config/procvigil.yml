@@ -1,0 +1,67 @@
+# ProcVigil örnek yapılandırması (YAML — PyYAML gerektirir)
+# Bağımlılıksız alternatif: aynı içeriği JSON olarak yaz (bkz. procvigil.json)
+# Doğrulamak için: python3 -m procvigil check -c /etc/procvigil/procvigil.yml
+
+procvigil:
+  logdir: /var/log/procvigil     # program stdout/stderr logları buraya
+  loglevel: info              # debug | info | warning | error
+  # hostname: web-01          # webhook payload'ında gönderilir (varsayılan: sistemin hostname'i)
+  socket: /run/procvigil/procvigil.sock  # pvctl'nin bağlandığı kontrol soketi (systemd RuntimeDirectory)
+  # umask: "022"              # yeni süreçler/loglar için umask (opsiyonel)
+  metrics:                    # opsiyonel Prometheus/JSON endpoint
+    enabled: false
+    host: 127.0.0.1
+    port: 9100
+
+programs:
+  # --- Örnek 1: Laravel queue worker (klasik supervisor senaryosu) -----------
+  - name: laravel-queue
+    command: php /var/www/app/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    directory: /var/www/app
+    user: www-data
+    numprocs: 4                # 4 paralel worker
+    autostart: true
+    autorestart: always        # always | unexpected | never
+    startsecs: 3               # 3 sn ayakta kalırsa "RUNNING" sayılır
+    startretries: 5            # 5 başarısız denemeden sonra FATAL
+    stopsignal: TERM
+    stopwaitsecs: 15
+    environment:
+      APP_ENV: production
+    # Olay anında belirlenen parametreye HTTP isteği (webhook):
+    notify:
+      url: https://hooks.slack.com/services/XXX/YYY/ZZZ
+      method: POST
+      headers:
+        Content-Type: application/json
+      events: [start, crash, restart, fatal]   # hangi olaylarda tetiklensin
+      retries: 2
+
+  # --- Örnek 2: WebSocket / uzun süreli servis + HTTP health-check ----------
+  - name: ws-server
+    command: /opt/ws/bin/server --port 8081
+    directory: /opt/ws
+    user: appuser
+    autostart: true
+    autorestart: always
+    healthcheck:
+      url: http://127.0.0.1:8081/health
+      method: GET
+      interval: 15             # 15 sn'de bir kontrol
+      timeout: 5
+      expect_status: [200]
+      unhealthy_threshold: 3   # 3 ardışık başarısızlıkta
+      on_unhealthy: restart    # restart | notify | nothing
+    notify:
+      url: https://example.com/api/procvigil-events
+      events: [crash, fatal, unhealthy]
+
+  # --- Örnek 3: Python arka plan servisi -----------------------------------
+  - name: background-job
+    command: /usr/bin/python3 /opt/jobs/worker.py
+    autostart: true
+    autorestart: unexpected    # sadece beklenmeyen exit kodunda yeniden başlat
+    exitcodes: [0, 2]          # bunlar "normal" çıkış sayılır
+    startretries: 10
+    backoff_base: 1.0          # backoff: 1, 2, 4, 8, ... saniye
+    backoff_max: 30.0

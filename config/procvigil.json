@@ -1,0 +1,69 @@
+{
+  "_comment": "ProcVigil ornek yapilandirmasi (JSON - sifir bagimlilik, varsayilan). Dogrulamak icin: python3 -m procvigil check -c /etc/procvigil/procvigil.json",
+
+  "procvigil": {
+    "logdir": "/var/log/procvigil",
+    "loglevel": "info",
+    "socket": "/run/procvigil/procvigil.sock",
+    "metrics": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 9100
+    }
+  },
+
+  "programs": [
+    {
+      "name": "laravel-queue",
+      "command": "php /var/www/app/artisan queue:work --sleep=3 --tries=3 --max-time=3600",
+      "directory": "/var/www/app",
+      "user": "www-data",
+      "numprocs": 4,
+      "autostart": true,
+      "autorestart": "always",
+      "startsecs": 3,
+      "startretries": 5,
+      "stopsignal": "TERM",
+      "stopwaitsecs": 15,
+      "environment": { "APP_ENV": "production" },
+      "notify": {
+        "url": "https://hooks.slack.com/services/XXX/YYY/ZZZ",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" },
+        "events": ["start", "crash", "restart", "fatal"],
+        "retries": 2
+      }
+    },
+    {
+      "name": "ws-server",
+      "command": "/opt/ws/bin/server --port 8081",
+      "directory": "/opt/ws",
+      "user": "appuser",
+      "autostart": true,
+      "autorestart": "always",
+      "healthcheck": {
+        "url": "http://127.0.0.1:8081/health",
+        "method": "GET",
+        "interval": 15,
+        "timeout": 5,
+        "expect_status": [200],
+        "unhealthy_threshold": 3,
+        "on_unhealthy": "restart"
+      },
+      "notify": {
+        "url": "https://example.com/api/procvigil-events",
+        "events": ["crash", "fatal", "unhealthy"]
+      }
+    },
+    {
+      "name": "background-job",
+      "command": "/usr/bin/python3 /opt/jobs/worker.py",
+      "autostart": true,
+      "autorestart": "unexpected",
+      "exitcodes": [0, 2],
+      "startretries": 10,
+      "backoff_base": 1.0,
+      "backoff_max": 30.0
+    }
+  ]
+}

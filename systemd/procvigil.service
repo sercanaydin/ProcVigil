@@ -1,0 +1,42 @@
+[Unit]
+Description=ProcVigil - supervisor mantiginda surec gozcusu
+Documentation=https://github.com/sercanaydin/ProcVigil
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Daemon'u on planda calistir (venv yok; sistem python3 + PYTHONPATH).
+# Ciktiyi journald yakalar.
+ExecStart=/usr/bin/python3 -m procvigil run -c /etc/procvigil/procvigil.json
+# SIGHUP -> config reload (systemctl reload procvigil)
+ExecReload=/bin/kill -HUP $MAINPID
+WorkingDirectory=/opt/procvigil
+
+# ProcVigil'in kendisi cokerse systemd kaldirsin (gozcunun gozcusu).
+Restart=always
+RestartSec=3
+
+# Cikis sinyali ve zaman asimi.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# ProcVigil root calismali ki "user:" ile program dusurebilsin.
+User=root
+# Birincil grup 'procvigil': kontrol soketi bu gruba acilir, boylece bu grubun
+# uyeleri 'pvctl' komutunu sudo'suz kullanabilir.
+Group=procvigil
+
+# systemd, servis basladiginda /run/procvigil dizinini olusturur ve servis
+# durdugunda otomatik siler (kalinti soket dosyasi kalmaz). setgid (2750) ile
+# icine olusturulan soket dosyasi 'procvigil' grubunu devralir.
+RuntimeDirectory=procvigil
+RuntimeDirectoryMode=2750
+
+# PYTHONPATH: procvigil paketi /opt/procvigil altinda. PYTHONUNBUFFERED ile
+# loglar aninda journald'ye duser.
+Environment=PYTHONPATH=/opt/procvigil
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

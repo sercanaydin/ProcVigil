@@ -1,0 +1,6 @@
+# ProcVigil çalışma-zamanı bağımlılığı YOKTUR — saf Python stdlib.
+# (JSON config yerleşiktir; webhook/health-check urllib ile yapılır.)
+#
+# İsteğe bağlı: config'i JSON yerine YAML yazmak istersen PyYAML kur:
+#   apt install python3-yaml      # önerilen (distro paketi, pip gerekmez)
+#   pip install pyyaml            # alternatif

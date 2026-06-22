@@ -1,0 +1,55 @@
+# ProcVigil HTTP isteği (webhook) örnek config'i.
+#
+# Bu örnek, olay anında belirlediğin URL'ye HTTP isteği atmayı (notify) ve
+# HTTP health-check'i canlı olarak gösterir.
+#
+# Önce webhook alıcıyı başlat:
+#     python3 examples/webhook_receiver.py        # 127.0.0.1:9000
+#
+# Sonra ProcVigil'ı bu config ile çalıştır:
+#     python -m procvigil run -c examples/http-example.yml
+#
+# Webhook alıcının terminalinde start/exit/crash/restart isteklerinin
+# akışını göreceksin.
+
+procvigil:
+  logdir: /tmp/procvigil-http-demo
+  loglevel: info
+
+programs:
+  # --- 1) Bilerek çöken iş: notify olaylarını tetiklemek için -----------------
+  # Birkaç saniye çalışır, sonra hata koduyla çıkar; ProcVigil yeniden başlatır.
+  # Her döngüde webhook alıcıya istek gider.
+  - name: flaky-job
+    command: sh -c 'echo "calisiyorum..."; sleep 4; echo "patliyorum"; exit 1'
+    startsecs: 2
+    autorestart: always
+    backoff_base: 1.0
+    notify:
+      url: http://127.0.0.1:9000/hook
+      method: POST
+      headers:
+        Content-Type: application/json
+        X-Source: procvigil-demo
+      # Bu olayların her birinde 9000 portuna HTTP isteği atılır:
+      events: [start, exit, crash, restart, fatal]
+      retries: 2
+
+  # --- 2) Sağlıklı servis + HTTP health-check --------------------------------
+  # webhook_receiver'ın /health ucunu kullanır (her zaman 200 döner).
+  # on_unhealthy=notify olduğu için, sağlıksız olsaydı sadece bildirim atardı.
+  - name: healthy-service
+    command: sh -c 'while true; do sleep 5; done'
+    startsecs: 1
+    autorestart: always
+    healthcheck:
+      url: http://127.0.0.1:9000/health
+      method: GET
+      interval: 5
+      timeout: 3
+      expect_status: [200]
+      unhealthy_threshold: 3
+      on_unhealthy: notify
+    notify:
+      url: http://127.0.0.1:9000/hook
+      events: [start, unhealthy, crash]

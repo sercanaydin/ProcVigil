@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Servis kimligi: launchctl komutlarinda bu label kullanilir -->
+    <key>Label</key>
+    <string>com.procvigil.daemon</string>
+
+    <!-- systemd'deki ExecStart karsiligi: daemon'u on planda calistir.
+         venv yok; sistem python3 + PYTHONPATH ile. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>-m</string>
+        <string>procvigil</string>
+        <string>run</string>
+        <string>-c</string>
+        <string>/etc/procvigil/procvigil.json</string>
+    </array>
+
+    <!-- Calisma dizini (modulun bulunabilmesi icin) -->
+    <key>WorkingDirectory</key>
+    <string>/opt/procvigil</string>
+
+    <!-- Boot'ta otomatik baslat (systemd: WantedBy=multi-user.target) -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Cokunce yeniden baslat (systemd: Restart=always) -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Hizli restart dongusunu engelle (systemd: RestartSec) -->
+    <key>ThrottleInterval</key>
+    <integer>3</integer>
+
+    <!-- PYTHONPATH: paket /opt/procvigil altinda. PYTHONUNBUFFERED loglar icin. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>/opt/procvigil</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+
+    <!-- Daemon ciktilari (macOS'ta journald yok; dosyaya yaziyoruz) -->
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/log/procvigil/procvigil.daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/procvigil/procvigil.daemon.log</string>
+
+    <!-- Programlari "user:" ile baska kullanici olarak baslatabilmek icin
+         daemon root calismali. (LaunchDaemons varsayilani zaten root'tur.) -->
+    <key>UserName</key>
+    <string>root</string>
+
+    <!-- Kontrol soketi (0660) bu gruba acilir; boylece bu grubun uyeleri
+         'pvctl' komutunu sudo'suz kullanabilir. macOS'ta yoneticiler 'admin'
+         grubundadir (Linux'taki 'procvigil' grubunun muadili). Daemon yine
+         root (euid=0) calisir; sadece efektif grubu 'admin' olur. -->
+    <key>GroupName</key>
+    <string>admin</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "procvigil"
+version = "0.1.0"
+description = "Supervisor mantığında hafif süreç gözcüsü (systemd/launchd ile)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+# Çalışma-zamanı bağımlılığı yok — saf stdlib.
+dependencies = []
+
+[project.optional-dependencies]
+# YAML config kullanmak isteyenler için (JSON config bağımlılıksız çalışır).
+yaml = ["PyYAML>=6.0"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+procvigil = "procvigil.__main__:main"
+# pvctl, 'procvigil ctl ...' için kısayol sarmalayıcı.
+pvctl = "procvigil.cli_ctl:main"
+
+[tool.setuptools]
+packages = ["procvigil"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # satır uzunluğu (formatlayıcıya bırak)
+    "B008",   # argümanda fonksiyon çağrısı (dataclass field default_factory ile çakışmaz ama güvenli)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
